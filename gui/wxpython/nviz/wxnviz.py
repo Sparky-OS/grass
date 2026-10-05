@@ -161,6 +161,9 @@ try:
         DM_POLY,
         DM_WIRE,
         DM_WIRE_POLY,
+        GSD_EYE_LEFT,
+        GSD_EYE_MONO,
+        GSD_EYE_RIGHT,
         MAP_ATT,
         MAX_ISOSURFS,
         GP_delete_site,
@@ -183,11 +186,14 @@ try:
         GS_get_trans,
         GS_get_val_at_xy,
         GS_get_viewdir,
+        GS_is_stereo,
         GS_libinit,
         GS_num_surfs,
         GS_set_att_const,
         GS_set_drawmode,
         GS_set_drawres,
+        GS_set_eye,
+        GS_set_eye_separation,
         GS_set_rotation_matrix,
         GS_set_trans,
         GS_set_viewdir,
@@ -526,6 +532,27 @@ class Nviz:
             Nviz_draw_quick(self.data, quick_mode)
         else:
             Nviz_draw_all(self.data)
+
+    def IsStereo(self) -> bool:
+        """Check if the canvas has stereo buffers (left and right eye)"""
+        return bool(GS_is_stereo())
+
+    def SetEye(self, eye: int) -> None:
+        """Set the eye to draw
+
+        The back buffers are swapped by the canvas after both eyes are drawn.
+
+        :param eye: GSD_EYE_MONO, GSD_EYE_LEFT or GSD_EYE_RIGHT
+        """
+        GS_set_eye(eye)
+
+    def SetEyeSeparation(self, sep: float) -> None:
+        """Set the distance between the eyes
+
+        :param sep: distance in percent of the distance to the focus point,
+                    which is shown at the screen's depth
+        """
+        GS_set_eye_separation(sep)
 
     def EraseMap(self) -> None:
         """Erase map display (with background color)"""
@@ -2825,6 +2852,9 @@ __all__: list[str] = [
     "DRAW_QUICK_VLINES",
     "DRAW_QUICK_VOLUME",
     "DRAW_QUICK_VPOINTS",
+    "GSD_EYE_LEFT",
+    "GSD_EYE_MONO",
+    "GSD_EYE_RIGHT",
     "MAX_ISOSURFS",
     "ImageTexture",
     "Nviz",

@@ -45,7 +45,12 @@ from nviz import wxnviz
 from nviz.animation import Animation
 from nviz.workspace import NvizSettings
 from wx import glcanvas
-from wx.glcanvas import WX_GL_DEPTH_SIZE, WX_GL_DOUBLEBUFFER, WX_GL_RGBA
+from wx.glcanvas import (
+    WX_GL_DEPTH_SIZE,
+    WX_GL_DOUBLEBUFFER,
+    WX_GL_RGBA,
+    WX_GL_STEREO,
+)
 from wx.lib.newevent import NewEvent
 
 if TYPE_CHECKING:
@@ -119,6 +124,11 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
                 UserSettings.Get(group="display", key="nvizDepthBuffer", subkey="value")
             )
             attribs = [WX_GL_RGBA, WX_GL_DOUBLEBUFFER, WX_GL_DEPTH_SIZE, depthBuffer, 0]
+            # stereo (left and right eye) when asked for and offered, otherwise mono
+            if UserSettings.Get(group="display", key="nvizStereo", subkey="enabled"):
+                stereoAttribs = [*attribs[:-1], WX_GL_STEREO, 0]
+                if glcanvas.GLCanvas.IsDisplaySupported(stereoAttribs):
+                    attribs = stereoAttribs
             glcanvas.GLCanvas.__init__(self, parent, id, attribList=attribs)
         else:
             glcanvas.GLCanvas.__init__(self, parent, id)
@@ -145,6 +155,7 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
 
         self.init = False
         self.initView = False
+        self.stereo = False
         self.context: glcanvas.GLContext | None = None
         if CheckWxVersion(version=[2, 9]):
             self.context = glcanvas.GLContext(self)
@@ -458,6 +469,7 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
         if not self.initView:
             self._display.InitView()
             self.initView = True
+            self.stereo = self._display.IsStereo()
 
         self.LoadDataLayers()
         self.UnloadDataLayers()
@@ -1256,39 +1268,49 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
                 self.parent.GetProgressBar().SetRange(2)
                 self.parent.GetProgressBar().SetValue(0)
 
-        if self.render["quick"] is False:
-            if sys.platform != "darwin":
-                self.parent.GetProgressBar().SetValue(1)
-            self._display.Draw(False, -1)
-            if self.saveHistory:
-                self.ViewHistory(view=self.view, iview=self.iview)
-                self.saveHistory = False
-        elif self.render["quick"] is True:
-            # quick
-            mode = wxnviz.DRAW_QUICK_SURFACE | wxnviz.DRAW_QUICK_VOLUME
-            if self.render["vlines"]:
-                mode |= wxnviz.DRAW_QUICK_VLINES
-            if self.render["vpoints"]:
-                mode |= wxnviz.DRAW_QUICK_VPOINTS
-            self._display.Draw(True, mode)
-        else:  # None -> reuse last rendered image
-            pass  # TODO
+        # in stereo each eye is drawn from its camera to its back buffer,
+        # then both are swapped together
+        if self.stereo:
+            self._display.SetEyeSeparation(
+                float(
+                    UserSettings.Get(
+                        group="display", key="nvizEyeSeparation", subkey="value"
+                    )
+                )
+            )
+            eyes = (wxnviz.GSD_EYE_LEFT, wxnviz.GSD_EYE_RIGHT)
+        else:
+            eyes = (wxnviz.GSD_EYE_MONO,)
+        for eye in eyes:
+            self._display.SetEye(eye)
+            if self.render["quick"] is False:
+                if sys.platform != "darwin":
+                    self.parent.GetProgressBar().SetValue(1)
+                self._display.Draw(False, -1)
+                if self.saveHistory:
+                    self.ViewHistory(view=self.view, iview=self.iview)
+                    self.saveHistory = False
+            elif self.render["quick"] is True:
+                # quick
+                mode = wxnviz.DRAW_QUICK_SURFACE | wxnviz.DRAW_QUICK_VOLUME
+                if self.render["vlines"]:
+                    mode |= wxnviz.DRAW_QUICK_VLINES
+                if self.render["vpoints"]:
+                    mode |= wxnviz.DRAW_QUICK_VPOINTS
+                self._display.Draw(True, mode)
+            else:  # None -> reuse last rendered image
+                pass  # TODO
+
+            if self.stereo:
+                # no front buffer in stereo, 2D overlays are drawn the same in each eye
+                self._DrawDecorations()
 
         self.SwapBuffers()
-        # draw fringe after SwapBuffers, otherwise it don't have to be visible
-        # on some computers
-        if self.render["quick"] is False:
-            self._display.DrawFringe()
-            if self.decoration["arrow"]["show"]:
-                self._display.DrawArrow()
-            if self.decoration["scalebar"]:
-                self._display.DrawScalebar()
-        if self.imagelist:
-            if (self.render["quick"] and self.dragid > -1) or (  # during dragging
-                not self.render["quick"] and self.dragid < 0
-            ):  # redraw
-                self._display.Start2D()
-                self.DrawImages()
+        self._display.SetEye(wxnviz.GSD_EYE_MONO)
+        if not self.stereo:
+            # draw fringe after SwapBuffers, otherwise it don't have to be visible
+            # on some computers
+            self._DrawDecorations()
 
         stop = gs.clock()
 
@@ -1303,6 +1325,21 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
             "GLWindow.UpdateMap(): quick = %d, -> time = %g"
             % (int(self.render["quick"]), (stop - start)),
         )
+
+    def _DrawDecorations(self) -> None:
+        """Draw fringe, north arrow, scale bar and the 2D overlay images"""
+        if self.render["quick"] is False:
+            self._display.DrawFringe()
+            if self.decoration["arrow"]["show"]:
+                self._display.DrawArrow()
+            if self.decoration["scalebar"]:
+                self._display.DrawScalebar()
+        if self.imagelist:
+            if (self.render["quick"] and self.dragid > -1) or (  # during dragging
+                not self.render["quick"] and self.dragid < 0
+            ):  # redraw
+                self._display.Start2D()
+                self.DrawImages()
 
     def EraseMap(self):
         """Erase the canvas"""

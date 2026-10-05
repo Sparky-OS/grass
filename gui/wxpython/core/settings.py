@@ -228,6 +228,12 @@ class Settings:
                 "nvizDepthBuffer": {
                     "value": 16,
                 },
+                "nvizStereo": {
+                    "enabled": False,
+                },
+                "nvizEyeSeparation": {
+                    "value": 3,
+                },
             },
             #
             # projection

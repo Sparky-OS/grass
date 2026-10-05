@@ -1176,6 +1176,50 @@ class PreferencesDialog(PreferencesBaseDialog):
                 textCtrl, flag=wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, pos=(row, 1)
             )
 
+            row += 1
+            nvizStereo = wx.CheckBox(
+                parent=panel,
+                id=wx.ID_ANY,
+                label=_(
+                    "3D view in stereo, left and right eye (when the display offers it, "
+                    "applies to 3D views opened afterwards)"
+                ),
+                name="IsChecked",
+            )
+            nvizStereo.SetValue(
+                self.settings.Get(group="display", key="nvizStereo", subkey="enabled")
+            )
+            self.winId["display:nvizStereo:enabled"] = nvizStereo.GetId()
+            gridSizer.Add(nvizStereo, pos=(row, 0), span=(1, 2))
+
+            row += 1
+            gridSizer.Add(
+                StaticText(
+                    parent=panel,
+                    id=wx.ID_ANY,
+                    label=_(
+                        "3D view eye separation in percent of the distance "
+                        "to the focus point:"
+                    ),
+                ),
+                flag=wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
+                pos=(row, 0),
+            )
+            value = self.settings.Get(
+                group="display", key="nvizEyeSeparation", subkey="value"
+            )
+            textCtrl = TextCtrl(
+                parent=panel,
+                id=wx.ID_ANY,
+                value=str(value),
+                validator=IntegerValidator(),
+                name="GetValue",
+            )
+            self.winId["display:nvizEyeSeparation:value"] = textCtrl.GetId()
+            gridSizer.Add(
+                textCtrl, flag=wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, pos=(row, 1)
+            )
+
             gridSizer.AddGrowableCol(0)
             sizer.Add(gridSizer, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
             border.Add(sizer, proportion=0, flag=wx.ALL | wx.EXPAND, border=3)
