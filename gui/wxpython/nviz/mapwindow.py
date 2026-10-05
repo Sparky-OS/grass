@@ -112,6 +112,9 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
         self.tree = tree
         self.lmgr = lmgr
         self.frame = frame
+        self.stereoRequested = bool(
+            UserSettings.Get(group="display", key="nvizStereo", subkey="enabled")
+        )
 
         # for wxGTK we need to set WX_GL_DEPTH_SIZE to draw vectors correctly
         # but we don't know the right value
@@ -125,7 +128,7 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
             )
             attribs = [WX_GL_RGBA, WX_GL_DOUBLEBUFFER, WX_GL_DEPTH_SIZE, depthBuffer, 0]
             # stereo (left and right eye) when asked for and offered, otherwise mono
-            if UserSettings.Get(group="display", key="nvizStereo", subkey="enabled"):
+            if self.stereoRequested:
                 stereoAttribs = [*attribs[:-1], WX_GL_STEREO, 0]
                 if glcanvas.GLCanvas.IsDisplaySupported(stereoAttribs):
                     attribs = stereoAttribs
@@ -469,7 +472,7 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
         if not self.initView:
             self._display.InitView()
             self.initView = True
-            self.stereo = self._display.IsStereo()
+            self.stereo = self.stereoRequested and self._display.IsStereo()
 
         self.LoadDataLayers()
         self.UnloadDataLayers()
