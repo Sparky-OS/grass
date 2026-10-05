@@ -441,10 +441,35 @@ int gsd_getshademodel(void)
 }
 
 /*!
+   \brief Draw to the back buffer of the eye being drawn
+
+   Both eyes are swapped together, so in stereo every draw goes to the back
+   buffer of its eye, also where the front buffer is asked for.
+
+   \return 1 if drawing a stereo eye
+   \return 0 for the mono view
+ */
+static int gsd_eyebuffer(void)
+{
+    switch (GS_get_eye()) {
+    case GSD_EYE_LEFT:
+        glDrawBuffer(GL_BACK_LEFT);
+        return 1;
+    case GSD_EYE_RIGHT:
+        glDrawBuffer(GL_BACK_RIGHT);
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+/*!
    \brief Draw to the front and back buffers
  */
 void gsd_bothbuffers(void)
 {
+    if (gsd_eyebuffer())
+        return;
 #if !defined(OPENGL_FBO)
     /* OGLXXX bothbuffer: other possibilities include GL_FRONT, GL_BACK */
     glDrawBuffer(GL_FRONT_AND_BACK);
@@ -457,6 +482,8 @@ void gsd_bothbuffers(void)
  */
 void gsd_frontbuffer(void)
 {
+    if (gsd_eyebuffer())
+        return;
 #if !defined(OPENGL_FBO)
     /* OGLXXX frontbuffer: other possibilities include GL_FRONT_AND_BACK */
     glDrawBuffer(GL_FRONT);
@@ -469,6 +496,8 @@ void gsd_frontbuffer(void)
  */
 void gsd_backbuffer(void)
 {
+    if (gsd_eyebuffer())
+        return;
 #if !defined(OPENGL_FBO)
     /* OGLXXX backbuffer: other possibilities include GL_FRONT_AND_BACK */
     glDrawBuffer(GL_BACK);

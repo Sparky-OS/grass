@@ -2503,7 +2503,7 @@ void GS_done_draw(void)
 
     G_debug(3, "GS_done_draw");
 
-    if (GSD_BACK == Buffermode) {
+    if (GSD_BACK == Buffermode && GSD_EYE_MONO == Gv.eye) {
         gsd_swapbuffers();
     }
 
@@ -2853,6 +2853,62 @@ void GS_set_fov(int fov)
 int GS_get_fov(void)
 {
     return (Gv.fov);
+}
+
+/*!
+   \brief Check if the GL context has stereo buffers
+
+   \return 1 if GL_BACK_LEFT and GL_BACK_RIGHT can be drawn to
+   \return 0 otherwise
+ */
+int GS_is_stereo(void)
+{
+    GLboolean stereo = GL_FALSE;
+
+    glGetBooleanv(GL_STEREO, &stereo);
+
+    return (stereo == GL_TRUE);
+}
+
+/*!
+   \brief Set the eye to draw
+
+   The view is drawn to the back buffer of the eye, from the eye's camera.
+   Buffers are not swapped until the eye is set back to GSD_EYE_MONO.
+
+   \param eye GSD_EYE_MONO, GSD_EYE_LEFT, GSD_EYE_RIGHT
+ */
+void GS_set_eye(int eye)
+{
+    if (Gv.eye != GSD_EYE_MONO && eye == GSD_EYE_MONO)
+        glDrawBuffer(GL_BACK);
+    Gv.eye = eye;
+    GS_set_draw(Buffermode);
+
+    return;
+}
+
+/*!
+   \brief Get the eye to draw
+
+   \return GSD_EYE_MONO, GSD_EYE_LEFT or GSD_EYE_RIGHT
+ */
+int GS_get_eye(void)
+{
+    return (Gv.eye);
+}
+
+/*!
+   \brief Set the distance between the eyes
+
+   \param sep distance in percent of the distance from the camera to
+   the focus point, which is shown at the screen's depth
+ */
+void GS_set_eye_separation(float sep)
+{
+    Gv.eye_sep = sep;
+
+    return;
 }
 
 /*!

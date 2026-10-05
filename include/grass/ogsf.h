@@ -105,6 +105,11 @@
 #define GSD_BACK           2
 #define GSD_BOTH           3
 
+/* Eyes of a stereo view */
+#define GSD_EYE_MONO       0
+#define GSD_EYE_LEFT       1
+#define GSD_EYE_RIGHT      2
+
 /* fence colormodes */
 #define FC_OFF             0
 #define FC_ABOVE           1
@@ -573,6 +578,11 @@ typedef struct {
     float real_to[4], vert_exag;
     float scale;
     struct lightdefs lights[MAX_LIGHTS];
+
+    /** @brief stereo view: eye, separation in percent of the focus distance,
+     * and the focus distance */
+    int eye;
+    float eye_sep, focus_dist;
 } geoview;
 
 typedef struct { /* need to add elements here for off_screen drawing */

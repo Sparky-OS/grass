@@ -136,6 +136,29 @@ void gsd_set_view(geoview * gv, geodisplay * gd)
 }
 #endif
 /*!
+   \brief Get distance from the camera to the plane of zero parallax
+
+   The focus point is at the screen's depth; without a focus point it is
+   the center of the data.
+
+   \param gv view (geoview)
+
+   \return distance
+ */
+static double gsd_get_focus_dist(geoview *gv)
+{
+    float pos[3];
+
+    if (!gv->infocus) {
+        gs_get_datacenter(pos);
+        gsd_surf2model(pos);
+        gv->focus_dist = GS_distance(gv->from_to[FROM], pos);
+    }
+
+    return gv->focus_dist > 0. ? gv->focus_dist : 1.;
+}
+
+/*!
    \brief Set view
 
    Establishes viewing & projection matrices
@@ -150,6 +173,7 @@ void gsd_set_view(geoview *gv, geodisplay *gd)
     int i;
     GLdouble modelMatrix[16];
     GLint mm;
+    double eye_x = 0., focus_dist, shift, top;
 
     /* will expand when need to check for in focus, ortho, etc. */
 
@@ -161,12 +185,30 @@ void gsd_set_view(geoview *gv, geodisplay *gd)
     glGetIntegerv(GL_MATRIX_MODE, &mm);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective((double).1 * (gv->fov), (double)gd->aspect,
-                   (double)gd->nearclip, (double)gd->farclip);
+    if (gv->eye == GSD_EYE_MONO) {
+        gluPerspective((double).1 * (gv->fov), (double)gd->aspect,
+                       (double)gd->nearclip, (double)gd->farclip);
+    }
+    else {
+        /* the eye is half the separation to the left or to the right of the
+           camera, looking the same way (no toe-in); the frustum is shifted
+           so that the planes of both eyes meet at the focus distance */
+        focus_dist = gsd_get_focus_dist(gv);
+        eye_x = .005 * gv->eye_sep * focus_dist;
+        if (gv->eye == GSD_EYE_LEFT)
+            eye_x = -eye_x;
+        top = tan((double).05 * (gv->fov) * M_PI / 180.) * gd->nearclip;
+        shift = -eye_x * gd->nearclip / focus_dist;
+        glFrustum(-top * gd->aspect + shift, top * gd->aspect + shift, -top,
+                  top, (double)gd->nearclip, (double)gd->farclip);
+    }
 
     glMatrixMode(mm);
 
     glLoadIdentity();
+
+    /* move the eye in the camera's own axes, after the twist */
+    glTranslated(-eye_x, 0., 0.);
 
     /* update twist parm */
     glRotatef((float)(gv->twist / 10.), 0.0, 0.0, 1.0);
@@ -178,7 +220,7 @@ void gsd_set_view(geoview *gv, geodisplay *gd)
               (double)up[X], (double)up[Y], (double)up[Z]);
 
     /* rotate to get rotation matrix and then save it */
-    if (gv->rotate.do_rot) {
+    if (gv->rotate.do_rot && gv->eye != GSD_EYE_RIGHT) {
 
         glPushMatrix();
         glLoadMatrixd(gv->rotate.rotMatrix);
@@ -225,6 +267,7 @@ void gsd_check_focus(geoview *gv)
         GS_v3mult(gv->from_to[TO], gv->scale);
         gv->from_to[TO][Z] *= gv->vert_exag;
 
+        gv->focus_dist = GS_distance(gv->from_to[FROM], gv->from_to[TO]);
         GS_v3normalize(gv->from_to[FROM], gv->from_to[TO]);
     }
 
