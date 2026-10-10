@@ -1,3 +1,28 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/sparky-stereo-os/sparkyos-swirl-light-128.png">
+  <img src=".github/sparky-stereo-os/sparkyos-swirl-dark-128.png" alt="SparkyOS" width="128" height="128">
+</picture>
+
+## Sparky Stereo OS
+
+This is the stereo version of GRASS by Sparky Stereo OS, forked from [OSGeo/grass](https://github.com/OSGeo/grass).
+Its 3D view (NVIZ) can draw the scene from the left and the right eye, one world and two cameras, into an OpenGL quad-buffer stereo window when its stereo setting asks for it.
+Without the setting nothing changes; on Sparky Stereo OS the desktop shows the stereo window on any 3D display.
+
+Where it comes from:
+
+- [GRASS](https://grass.osgeo.org/) is developed by the GRASS Development Team, with the people listed in [AUTHORS](AUTHORS), [contributors.csv](contributors.csv) and [contributors_extra.csv](contributors_extra.csv).
+- [Debian](https://www.debian.org/) is the base of the system.
+- [SparkyLinux](https://sparkylinux.org/), by Paweł "pavroo" Pijanowski, builds on Debian.
+- [Sparky Stereo OS](https://github.com/Sparky-OS/sparky-stereo-os) is the stereo 3D edition of SparkyLinux: SparkyOS, powered by Debian.
+
+The `stereo3d` branch holds this work on GRASS 8.5.0, the version Debian ships.
+The licence is unchanged; see [COPYING](COPYING).
+
+Sparky Stereo OS, Daniel Ramos's edition of SparkyLinux (by Paweł "pavroo" Pijanowski).
+
+---
+
 # GRASS Repository
 
 [![GCC C/C++ standards check](https://github.com/OSGeo/grass/workflows/GCC%20C/C++%20standards%20check/badge.svg)](https://github.com/OSGeo/grass/actions?query=workflow%3A%22GCC+C%2FC%2B%2B+standards+check%22)
