@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-26 12:47+0000\n"
+"POT-Creation-Date: 2026-10-17 17:59+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -944,7 +944,7 @@ msgstr ""
 msgid "Unable to open color descriptions"
 msgstr ""
 
-#: ../lib/gis/color_str.c:269
+#: ../lib/gis/color_str.c:275
 #, c-format
 msgid "Unknown color format '%s'"
 msgstr ""
@@ -1275,22 +1275,22 @@ msgstr ""
 msgid "This location has no description."
 msgstr ""
 
-#: ../lib/gis/omp_threads.c:28
+#: ../lib/gis/omp_threads.c:30
 msgid "Option is NULL."
 msgstr ""
 
-#: ../lib/gis/omp_threads.c:30
+#: ../lib/gis/omp_threads.c:32
 msgid "Option key is NULL."
 msgstr ""
 
-#: ../lib/gis/omp_threads.c:45
+#: ../lib/gis/omp_threads.c:47
 #, c-format
 msgid "One thread is set up for parallel computing."
 msgid_plural "%d threads are set up for parallel computing."
 msgstr[0] ""
 msgstr[1] ""
 
-#: ../lib/gis/omp_threads.c:51
+#: ../lib/gis/omp_threads.c:53
 msgid "GRASS is not compiled with OpenMP support, parallel computation is disabled. Only one thread will be used."
 msgstr ""
 
@@ -4476,7 +4476,7 @@ msgstr ""
 msgid "Color Material: %d"
 msgstr ""
 
-#: ../lib/ogsf/gsd_prim.c:638
+#: ../lib/ogsf/gsd_prim.c:667
 #, c-format
 msgid "gsd_rot(): %c is an invalid axis specification. Rotation ignored. Please advise GRASS developers of this error"
 msgstr ""
@@ -5234,15 +5234,15 @@ msgstr ""
 msgid "Unknown interpolation method: %s"
 msgstr ""
 
-#: ../lib/raster/json_color_out.c:69 ../lib/raster/json_color_out.c:103
+#: ../lib/raster/json_color_out.c:69 ../lib/raster/json_color_out.c:105
 msgid "Failed to initialize JSON object. Out of memory?"
 msgstr ""
 
-#: ../lib/raster/json_color_out.c:110
+#: ../lib/raster/json_color_out.c:112
 msgid "Failed to initialize JSON array. Out of memory?"
 msgstr ""
 
-#: ../lib/raster/json_color_out.c:176
+#: ../lib/raster/json_color_out.c:178
 msgid "Failed to serialize JSON to pretty format."
 msgstr ""
 
@@ -5259,7 +5259,7 @@ msgstr ""
 msgid "not known"
 msgstr ""
 
-#: ../lib/raster/mask_info.c:220
+#: ../lib/raster/mask_info.c:228
 msgid "Single thread processing enforced due to raster mask being present."
 msgstr ""
 
@@ -6649,7 +6649,7 @@ msgstr[1] ""
 #: ../lib/vector/Vlib/build_sfa.c:665
 #, c-format
 msgid "One vertex registered"
-msgid_plural "%d vertices registered"
+msgid_plural "%<PRId64> vertices registered"
 msgstr[0] ""
 msgstr[1] ""
 
