@@ -186,6 +186,8 @@ try:
         GS_get_trans,
         GS_get_val_at_xy,
         GS_get_viewdir,
+        GS_get_depth_range,
+        GS_get_stereo_separation,
         GS_is_stereo,
         GS_libinit,
         GS_num_surfs,
@@ -549,10 +551,34 @@ class Nviz:
     def SetEyeSeparation(self, sep: float) -> None:
         """Set the distance between the eyes
 
-        :param sep: distance in percent of the distance to the focus point,
+        :param sep: distance as a fraction of the distance to the focus point,
                     which is shown at the screen's depth
         """
         GS_set_eye_separation(sep)
+
+    def GetDepthRange(self) -> tuple[float, float] | None:
+        """Get the distances of the nearest and the farthest pixel the last
+        drawing left in the viewport
+
+        :return: (nearest, farthest), or None when no pixel shows data
+        """
+        nearest = c_double()
+        farthest = c_double()
+        if not GS_get_depth_range(byref(nearest), byref(farthest)):
+            return None
+        return nearest.value, farthest.value
+
+    def GetStereoSeparation(
+        self, nearest: float, farthest: float, sunk: float, popped: float, width: int
+    ) -> float:
+        """Get the largest separation of the eyes under which every distance
+        from nearest to farthest stays inside the depth limits
+
+        :param sunk: how far behind the screen anything may be, in pixels of the view
+        :param popped: how far in front of the screen, in pixels of the view
+        :param width: the view's width in pixels
+        """
+        return GS_get_stereo_separation(nearest, farthest, sunk, popped, int(width))
 
     def EraseMap(self) -> None:
         """Erase map display (with background color)"""

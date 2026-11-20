@@ -41,7 +41,7 @@ from core.globalvar import CheckWxVersion
 from core.settings import UserSettings
 from core.utils import str2rgb
 from mapwin.base import MapWindowBase
-from nviz import wxnviz
+from nviz import stereo3d, wxnviz
 from nviz.animation import Animation
 from nviz.workspace import NvizSettings
 from wx import glcanvas
@@ -159,6 +159,13 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
         self.init = False
         self.initView = False
         self.stereo = False
+        # the person's depth limits (see nviz.stereo3d), read at every draw and
+        # four times a second, and whether the person was told that none came
+        self.stereoWindow = (None, 0)
+        self.stereoLimits = (stereo3d.NOT_DELIVERED, 0.0, 0.0)
+        self.stereoWidth = 0
+        self.stereoSince = 0.0
+        self.stereoTold = False
         self.context: glcanvas.GLContext | None = None
         if CheckWxVersion(version=[2, 9]):
             self.context = glcanvas.GLContext(self)
@@ -241,6 +248,7 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
         self.timerFly = wx.Timer(self)
         # timer for animations
         self.timerAnim = wx.Timer(self)
+        self.timerStereo = wx.Timer(self)
         self.animation = Animation(mapWindow=self, timer=self.timerAnim)
 
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.OnEraseBackground)
@@ -255,6 +263,7 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
 
         self.Bind(wx.EVT_TIMER, self.OnTimerAnim, self.timerAnim)
         self.Bind(wx.EVT_TIMER, self.OnTimerFly, self.timerFly)
+        self.Bind(wx.EVT_TIMER, self.OnTimerStereo, self.timerStereo)
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
         self.Bind(wx.EVT_KEY_UP, self.OnKeyUp)
 
@@ -473,6 +482,9 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
             self._display.InitView()
             self.initView = True
             self.stereo = self.stereoRequested and self._display.IsStereo()
+            if self.stereo:
+                self.stereoSince = time.monotonic()
+                self.timerStereo.Start(250)
 
         self.LoadDataLayers()
         self.UnloadDataLayers()
@@ -1248,6 +1260,69 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
         if event.refresh:
             self.Refresh(False)
 
+    def _drawScene(self) -> None:
+        """Draw the data layers into the current eye's buffer"""
+        if self.render["quick"] is False:
+            self._display.Draw(False, -1)
+        elif self.render["quick"] is True:
+            # quick
+            mode = wxnviz.DRAW_QUICK_SURFACE | wxnviz.DRAW_QUICK_VOLUME
+            if self.render["vlines"]:
+                mode |= wxnviz.DRAW_QUICK_VLINES
+            if self.render["vpoints"]:
+                mode |= wxnviz.DRAW_QUICK_VPOINTS
+            self._display.Draw(True, mode)
+        # None -> reuse last rendered image: TODO
+
+    def _readStereoLimits(self) -> tuple[int, float, float]:
+        """Read the person's depth limits for the window the 3D view draws to
+        and say once why there are none"""
+        self.stereoWindow = stereo3d.CurrentWindow()
+        self.stereoWidth = self.GetClientSize()[0] * self.GetContentScaleFactor()
+        self.stereoLimits = stereo3d.ReadDepthLimits(
+            self.stereoWindow[0], self.stereoWindow[1], self.stereoWidth
+        )
+        state = self.stereoLimits[0]
+        waited = time.monotonic() - self.stereoSince > 2.0
+        if (
+            state != stereo3d.DELIVERED
+            and not self.stereoTold
+            and (state != stereo3d.NOT_DELIVERED or waited)
+        ):
+            if state == stereo3d.NOT_OFFERED:
+                message = _(
+                    "3D depth: this desktop offers no depth limits, so both eyes show "
+                    "the same picture"
+                )
+            elif state == stereo3d.NOT_DELIVERED:
+                message = _(
+                    "3D depth: the desktop has not delivered the depth limits yet, both "
+                    "eyes show the same picture for now"
+                )
+            else:
+                message = _(
+                    "3D depth: this window cannot read the desktop's depth limits, so "
+                    "both eyes show the same picture"
+                )
+            self._giface.WriteWarning(message)
+            self.stereoTold = True
+        return self.stereoLimits
+
+    def OnTimerStereo(self, event) -> None:
+        """Read the person's depth limits again and draw when they changed, or
+        once more when they have not come after two seconds, so the person is
+        told"""
+        limits = stereo3d.ReadDepthLimits(
+            self.stereoWindow[0], self.stereoWindow[1], self.stereoWidth
+        )
+        waited = (
+            limits[0] == stereo3d.NOT_DELIVERED
+            and not self.stereoTold
+            and time.monotonic() - self.stereoSince > 2.0
+        )
+        if limits != self.stereoLimits or waited:
+            self.Refresh(False)
+
     def UpdateMap(self, render: bool = True, reRenderTool: bool = False) -> None:
         """Updates the canvas anytime there is a change to the
         underlying images or to the geometry of the canvas.
@@ -1272,15 +1347,27 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
                 self.parent.GetProgressBar().SetValue(0)
 
         # in stereo each eye is drawn from its camera to its back buffer,
-        # then both are swapped together
+        # then both are swapped together; the eyes are as far apart as the
+        # person's depth limits allow, and no farther: a first pass from the
+        # camera between the eyes reads how near and how far the pixels of the
+        # scene are, and the separation is the largest under which every one of
+        # them stays inside the limits
         if self.stereo:
-            self._display.SetEyeSeparation(
-                float(
-                    UserSettings.Get(
-                        group="display", key="nvizEyeSeparation", subkey="value"
+            separation = 0.0
+            if self._readStereoLimits()[0] == stereo3d.DELIVERED:
+                self._display.SetEyeSeparation(0.0)
+                self._display.SetEye(wxnviz.GSD_EYE_LEFT)
+                self._drawScene()
+                depthRange = self._display.GetDepthRange()
+                if depthRange:
+                    separation = self._display.GetStereoSeparation(
+                        depthRange[0],
+                        depthRange[1],
+                        self.stereoLimits[1],
+                        self.stereoLimits[2],
+                        self.stereoWidth,
                     )
-                )
-            )
+            self._display.SetEyeSeparation(separation)
             eyes = (wxnviz.GSD_EYE_LEFT, wxnviz.GSD_EYE_RIGHT)
         else:
             eyes = (wxnviz.GSD_EYE_MONO,)
@@ -1289,20 +1376,10 @@ class GLWindow(MapWindowBase, glcanvas.GLCanvas):
             if self.render["quick"] is False:
                 if sys.platform != "darwin":
                     self.parent.GetProgressBar().SetValue(1)
-                self._display.Draw(False, -1)
-                if self.saveHistory:
-                    self.ViewHistory(view=self.view, iview=self.iview)
-                    self.saveHistory = False
-            elif self.render["quick"] is True:
-                # quick
-                mode = wxnviz.DRAW_QUICK_SURFACE | wxnviz.DRAW_QUICK_VOLUME
-                if self.render["vlines"]:
-                    mode |= wxnviz.DRAW_QUICK_VLINES
-                if self.render["vpoints"]:
-                    mode |= wxnviz.DRAW_QUICK_VPOINTS
-                self._display.Draw(True, mode)
-            else:  # None -> reuse last rendered image
-                pass  # TODO
+            self._drawScene()
+            if self.render["quick"] is False and self.saveHistory:
+                self.ViewHistory(view=self.view, iview=self.iview)
+                self.saveHistory = False
 
             if self.stereo:
                 # no front buffer in stereo, 2D overlays are drawn the same in each eye

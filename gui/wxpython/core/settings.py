@@ -229,10 +229,7 @@ class Settings:
                     "value": 16,
                 },
                 "nvizStereo": {
-                    "enabled": False,
-                },
-                "nvizEyeSeparation": {
-                    "value": 3,
+                    "enabled": True,
                 },
             },
             #

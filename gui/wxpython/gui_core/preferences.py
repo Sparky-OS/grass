@@ -48,7 +48,7 @@ import grass.script as gs
 from grass.exceptions import OpenError
 
 from core import globalvar
-from core.gcmd import GError
+from core.gcmd import GError, GMessage
 from core.utils import ListOfMapsets, GetColorTables, ReadEpsgCodes
 from core.settings import UserSettings
 from core.globalvar import CheckWxVersion
@@ -865,6 +865,40 @@ class PreferencesDialog(PreferencesBaseDialog):
 
         return panel
 
+    def OnEnable3D(self, event):
+        """A screen in a 3D mode offers the 3D view a stereo visual; on any
+        other screen the view stays one picture without a word, unless the
+        person turns 3D on themselves"""
+        event.Skip()
+        if not event.IsChecked():
+            return
+        from wx import glcanvas
+
+        attribs = [
+            glcanvas.WX_GL_RGBA,
+            glcanvas.WX_GL_DOUBLEBUFFER,
+            glcanvas.WX_GL_DEPTH_SIZE,
+            16,
+            glcanvas.WX_GL_STEREO,
+            0,
+        ]
+        if not glcanvas.GLCanvas.IsDisplaySupported(attribs):
+            GMessage(
+                parent=self,
+                message=_(
+                    "This screen offers no quad buffer, so the 3D view stays 2D. "
+                    "Stereo KWin offers one only on a screen in a 3D mode."
+                ),
+            )
+
+    def OnDisplaySettings(self, event):
+        """Open the display settings, where each screen's 3D mode, output and
+        eye order are chosen"""
+        from nviz import stereo3d
+
+        if not stereo3d.OpenDisplaySettings():
+            GError(parent=self, message=_("Display Settings could not be opened."))
+
     def _createDisplayPage(self, notebook):
         """Create notebook page for display settings"""
 
@@ -1180,45 +1214,22 @@ class PreferencesDialog(PreferencesBaseDialog):
             nvizStereo = wx.CheckBox(
                 parent=panel,
                 id=wx.ID_ANY,
-                label=_(
-                    "3D view in stereo, left and right eye (when the display offers it, "
-                    "applies to 3D views opened afterwards)"
-                ),
+                label=_("Enable 3D (applies to 3D views opened afterwards)"),
                 name="IsChecked",
             )
             nvizStereo.SetValue(
                 self.settings.Get(group="display", key="nvizStereo", subkey="enabled")
             )
+            nvizStereo.Bind(wx.EVT_CHECKBOX, self.OnEnable3D)
             self.winId["display:nvizStereo:enabled"] = nvizStereo.GetId()
             gridSizer.Add(nvizStereo, pos=(row, 0), span=(1, 2))
 
             row += 1
-            gridSizer.Add(
-                StaticText(
-                    parent=panel,
-                    id=wx.ID_ANY,
-                    label=_(
-                        "3D view eye separation in percent of the distance "
-                        "to the focus point:"
-                    ),
-                ),
-                flag=wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL,
-                pos=(row, 0),
+            displaySettings = Button(
+                parent=panel, id=wx.ID_ANY, label=_("3D display settings...")
             )
-            value = self.settings.Get(
-                group="display", key="nvizEyeSeparation", subkey="value"
-            )
-            textCtrl = TextCtrl(
-                parent=panel,
-                id=wx.ID_ANY,
-                value=str(value),
-                validator=IntegerValidator(),
-                name="GetValue",
-            )
-            self.winId["display:nvizEyeSeparation:value"] = textCtrl.GetId()
-            gridSizer.Add(
-                textCtrl, flag=wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL, pos=(row, 1)
-            )
+            displaySettings.Bind(wx.EVT_BUTTON, self.OnDisplaySettings)
+            gridSizer.Add(displaySettings, pos=(row, 0), span=(1, 2))
 
             gridSizer.AddGrowableCol(0)
             sizer.Add(gridSizer, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
