@@ -6,8 +6,9 @@
 ## Sparky Stereo OS
 
 This is the stereo version of GRASS by Sparky Stereo OS, forked from [OSGeo/grass](https://github.com/OSGeo/grass).
-Its 3D view (NVIZ) can draw the scene from the left and the right eye, one world and two cameras, into an OpenGL quad-buffer stereo window when its stereo setting asks for it.
-Without the setting nothing changes; on Sparky Stereo OS the desktop shows the stereo window on any 3D display.
+Its 3D view (NVIZ) draws the scene from the left and the right eye, one world and two cameras, into an OpenGL quad-buffer stereo window while "Enable 3D" is on in its 3D view settings.
+The distance between the two cameras follows the depth limits the person set on the desktop, so no pixel of the view leaves them.
+With "Enable 3D" off the view is as GRASS draws it; on Sparky Stereo OS the desktop shows the stereo window on any 3D display.
 
 Where it comes from:
 
