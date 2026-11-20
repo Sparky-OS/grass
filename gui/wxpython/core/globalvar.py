@@ -11,6 +11,7 @@ This program is free software under the GNU General Public License
 @author Martin Landa <landa.martin gmail.com>
 """
 
+import ctypes
 import os
 import sys
 import locale
@@ -115,6 +116,45 @@ if not os.getenv("GRASS_WXBUNDLED"):
     CheckForWx()
 # Importing wx only after checks.
 import wx  # noqa: E402
+
+
+def UseX11WithoutEGLCanvas() -> None:
+    """Run the GUI on X11 (Xwayland on a Wayland desktop) when wxWidgets' GL
+    canvas has no EGL
+
+    The 3D view is a wx GLCanvas.  A wxWidgets built without its EGL canvas
+    (wxUSE_GLCANVAS_EGL 0, as Debian's 3.2) draws it with GLX only, and on a
+    Wayland display it stops the whole GUI with "This program wasn't compiled
+    with EGL support required under Wayland".  KiCad answers the same limit
+    the same way (libs/kiplatform/os/unix/environment.cpp): GDK_BACKEND=x11
+    before the toolkit opens its display.  A GDK_BACKEND the person set is kept.
+    """
+    if not sys.platform.startswith("linux") or os.environ.get("GDK_BACKEND"):
+        return
+    try:
+        from wx import glcanvas  # noqa: F401  loads wxWidgets' GL library
+    except ImportError:
+        return
+    library = None
+    with open("/proc/self/maps") as maps:
+        for line in maps:
+            path = line.split()[-1]
+            if os.path.basename(path).startswith("libwx_gtk3u_gl"):
+                library = path
+                break
+    if not library:
+        return
+    try:
+        gl = ctypes.CDLL(library)
+    except OSError:
+        return
+    if hasattr(gl, "_ZN13wxGLCanvasEGL11SwapBuffersEv"):
+        return
+    os.environ["GDK_BACKEND"] = "x11"
+    Debug.msg(1, "wxWidgets' GL canvas has no EGL: the GUI runs on X11")
+
+
+UseX11WithoutEGLCanvas()
 
 if CheckWxPhoenix():
     try:
