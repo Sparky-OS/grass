@@ -159,6 +159,54 @@ static double gsd_get_focus_dist(geoview *gv)
 }
 
 /*!
+   \brief Get the separation of the eyes that fits a range of distances
+   inside depth limits
+
+   The eyes look the same way and their frustums meet at the focus
+   distance f (gsd_set_view()), so a point at distance z is
+   k t (1 - f / z) pixels to the right in the right eye, t being the
+   separation as a fraction of f and k half the view's width in pixels
+   over the tangent of half the horizontal field of view.
+
+   \param gv view (geoview)
+   \param gd display (geodisplay)
+   \param nearest, farthest distances of the nearest and the farthest pixel
+   \param sunk, popped how far behind and in front of the screen anything
+   may be, in pixels of the view
+   \param width the view's width in pixels
+
+   \return the largest separation under which every distance stays inside
+   the limits (infinity at the sunk limit when nothing is off the focus
+   plane), 0 when nothing can be fitted
+ */
+double gsd_get_stereo_separation(geoview *gv, geodisplay *gd, double nearest,
+                                 double farthest, double sunk, double popped,
+                                 int width)
+{
+    double f, k, t = -1.;
+
+    f = gsd_get_focus_dist(gv);
+    k = .5 * width /
+        (tan((double).05 * (gv->fov) * M_PI / 180.) * GS_get_aspect());
+    if (k <= 0. || nearest <= 0. || nearest > farthest || sunk < 0. ||
+        popped < 0.)
+        return 0.;
+
+    if (farthest > f)
+        t = sunk / (k * (1. - f / farthest));
+    if (nearest < f) {
+        double near_t = popped / (k * (f / nearest - 1.));
+
+        if (t < 0. || near_t < t)
+            t = near_t;
+    }
+    if (t < 0.)
+        t = sunk / k;
+
+    return t;
+}
+
+/*!
    \brief Set view
 
    Establishes viewing & projection matrices
@@ -194,7 +242,7 @@ void gsd_set_view(geoview *gv, geodisplay *gd)
            camera, looking the same way (no toe-in); the frustum is shifted
            so that the planes of both eyes meet at the focus distance */
         focus_dist = gsd_get_focus_dist(gv);
-        eye_x = .005 * gv->eye_sep * focus_dist;
+        eye_x = .5 * gv->eye_sep * focus_dist;
         if (gv->eye == GSD_EYE_LEFT)
             eye_x = -eye_x;
         top = tan((double).05 * (gv->fov) * M_PI / 180.) * gd->nearclip;

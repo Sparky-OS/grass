@@ -150,6 +150,8 @@ int GS_is_stereo(void);
 void GS_set_eye(int);
 int GS_get_eye(void);
 void GS_set_eye_separation(float);
+int GS_get_depth_range(double *, double *);
+float GS_get_stereo_separation(double, double, double, double, int);
 int GS_get_twist(void);
 void GS_set_twist(int);
 void GS_set_nofocus(void);
@@ -562,6 +564,8 @@ int gsd_norm_arrows(geosurf *);
 int gsd_get_los(float (*)[3], short, short);
 void gsd_set_view(geoview *, geodisplay *);
 void gsd_check_focus(geoview *);
+double gsd_get_stereo_separation(geoview *, geodisplay *, double, double, double,
+                                 double, int);
 void gsd_get_zup(geoview *, double *);
 int gsd_zup_twist(geoview *);
 void gsd_do_scale(int);

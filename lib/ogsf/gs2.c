@@ -2901,7 +2901,7 @@ int GS_get_eye(void)
 /*!
    \brief Set the distance between the eyes
 
-   \param sep distance in percent of the distance from the camera to
+   \param sep distance as a fraction of the distance from the camera to
    the focus point, which is shown at the screen's depth
  */
 void GS_set_eye_separation(float sep)
@@ -2909,6 +2909,70 @@ void GS_set_eye_separation(float sep)
     Gv.eye_sep = sep;
 
     return;
+}
+
+/*!
+   \brief Get the distances of the nearest and the farthest pixel of the
+   view
+
+   Reads the depth buffer of the viewport as the last drawing left it:
+   a pixel still at the cleared depth shows no data.
+
+   \param[out] nearest, farthest distances from the camera plane
+
+   \return 1 if a pixel shows data
+   \return 0 otherwise
+ */
+int GS_get_depth_range(double *nearest, double *farthest)
+{
+    GLint viewport[4];
+    GLfloat *depth;
+    float lo = 1.f, hi = 0.f;
+    double n = Gd.nearclip, f = Gd.farclip;
+    long i, count;
+
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    if (viewport[2] <= 0 || viewport[3] <= 0)
+        return 0;
+    count = (long)viewport[2] * viewport[3];
+    depth = (GLfloat *)G_malloc(count * sizeof(GLfloat));
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glReadPixels(viewport[0], viewport[1], viewport[2], viewport[3],
+                 GL_DEPTH_COMPONENT, GL_FLOAT, depth);
+    for (i = 0; i < count; i++) {
+        if (depth[i] >= 1.f)
+            continue;
+        if (depth[i] < lo)
+            lo = depth[i];
+        if (depth[i] > hi)
+            hi = depth[i];
+    }
+    G_free(depth);
+    if (lo > hi)
+        return 0;
+
+    /* the perspective of gsd_set_view(): window depth d is n f / (f - d (f - n)) */
+    *nearest = n * f / (f - lo * (f - n));
+    *farthest = n * f / (f - hi * (f - n));
+
+    return 1;
+}
+
+/*!
+   \brief Get the separation of the eyes that fits the nearest and the
+   farthest pixel inside depth limits (see gsd_get_stereo_separation())
+
+   \param nearest, farthest distances, from GS_get_depth_range()
+   \param sunk, popped limits in pixels of the view
+   \param width the view's width in pixels
+
+   \return separation for GS_set_eye_separation()
+ */
+float GS_get_stereo_separation(double nearest, double farthest, double sunk,
+                               double popped, int width)
+{
+    return (float)gsd_get_stereo_separation(&Gv, &Gd, nearest, farthest, sunk,
+                                            popped, width);
 }
 
 /*!
