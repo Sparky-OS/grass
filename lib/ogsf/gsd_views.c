@@ -203,6 +203,13 @@ double gsd_get_stereo_separation(geoview *gv, geodisplay *gd, double nearest,
     if (t < 0.)
         t = sunk / k;
 
+    G_debug(3,
+            "gsd_get_stereo_separation(): view %d px, fov %d, aspect %g, "
+            "focus %g, nearest %g, farthest %g, sunk %g, popped %g px: "
+            "separation %g",
+            width, gv->fov, GS_get_aspect(), f, nearest, farthest, sunk, popped,
+            t);
+
     return t;
 }
 
